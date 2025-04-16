@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-devsecops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-devsecops-demo
+  template:
+    metadata:
+      labels:
+        app: aks-devsecops-demo
+    spec:
+      containers:
+      - name: aks-devsecops-demo
+        image: cybrainiumacr.azurecr.io/aks-devsecops-demo:latest
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-devsecops-demo
+spec:
+  type: LoadBalancer
+  selector:
+    app: aks-devsecops-demo
+  ports:
+    - port: 80
+      targetPort: 3000
