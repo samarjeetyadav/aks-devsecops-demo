@@ -1,9 +1,54 @@
-- name: SonarCloud Scan
-  uses: SonarSource/sonarqube-scan-action@v1.0.1
-  with:
-    args: >
-      -Dsonar.organization=samarjeetyadav
-      -Dsonar.projectKey=samarjeetyadav_aks-devsecops-demo
-      -Dsonar.sources=.
-      -Dsonar.host.url=https://sonarcloud.io
-      -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+name: CI/CD Pipeline - DevSecOps
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarqube-scan-action@v1.0.1
+      with:
+        args: >
+          -Dsonar.organization=samarjeetyadav
+          -Dsonar.projectKey=samarjeetyadav_aks-devsecops-demo
+          -Dsonar.sources=.
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: Azure Login using OIDC
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Docker login to ACR
+      run: az acr login --name cybrainiumacr
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t cybrainiumacr.azurecr.io/aks-devsecops-demo:latest .
+        docker push cybrainiumacr.azurecr.io/aks-devsecops-demo:latest
+
+    - name: Deploy to AKS
+      run: |
+        kubectl apply -f k8s/deployment.yaml
